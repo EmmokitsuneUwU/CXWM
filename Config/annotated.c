@@ -106,6 +106,7 @@ int main(void)
          */
         if(ev.type == KeyPress && ev.xkey.subwindow != None)
             XRaiseWindow(dpy, ev.xkey.subwindow);
+            
         else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
         {
             /* we "remember" the position of the pointer at the beginning of

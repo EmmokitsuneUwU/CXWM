@@ -4,57 +4,62 @@
  * and is provided AS IS, with NO WARRANTY. */
 
 #include <X11/Xlib.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <X11/keysym.h>
+#include <iostream>
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
-
-void printWindows(Display *dpy,Window root)
-{
-    Window parent_window, *children;
-    unsigned int numchildren;
-
-    if(XQueryTree(dpy,root,&root,&parent_window,&children,&numchildren))
-    {
-        for(unsigned int i = 0; i < numchildren; i++)
-        {
-            printf("Ventana: 0x%lx\n", children[i]);
-            print_windows(dpy, children[i]);
-        }
-
-        XFree(children);
-    }
-}
 
 int main(void)
 {
     Display * dpy;
-    Window root_window;
     XWindowAttributes attr;
     XButtonEvent start;
     XEvent ev;
 
-    if(!(dpy = XOpenDisplay(0x0))) return 1;
+    int currentScreen;
+
+    Window root;
+
+    if(!(dpy = XOpenDisplay(nullptr))) return 1;
+
+    root = DefaultRootWindow(dpy);
+    currentScreen = DefaultScreen(dpy);
+
+    std::cout << "CXWM inited! " << DisplayWidth(dpy,currentScreen) << "w " << 
+        DisplayHeight(dpy,currentScreen) << "h"  << std::endl;
 
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F1")), Mod1Mask,
             DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("X")), Mod1Mask,
+            DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("Q")), Mod1Mask | ShiftMask,
+        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+
     XGrabButton(dpy, 1, Mod1Mask, DefaultRootWindow(dpy), True,
             ButtonPressMask|ButtonReleaseMask|PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
     XGrabButton(dpy, 3, Mod1Mask, DefaultRootWindow(dpy), True,
             ButtonPressMask|ButtonReleaseMask|PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
 
-    printf("CXWM Running! \n");
-
-    root_window = XRootWindow(dpy,DefaultScreen(dpy));
-
-    printWindows(dpy,root_window);
-
     start.subwindow = None;
     for(;;)
     {
         XNextEvent(dpy, &ev);
-        if(ev.type == KeyPress && ev.xkey.subwindow != None)
-            XRaiseWindow(dpy, ev.xkey.subwindow);
+
+        if(ev.type == KeyPress)
+        {
+            if(ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("X")) && (ev.xkey.state & Mod1Mask) && ev.xbutton.subwindow != None)
+            {
+                std::cout << "Pressed" << std::endl;
+                XDestroySubwindows(dpy,ev.xkey.subwindow);
+            }
+        }
+
+        if(ev.type == KeyPress)
+
+        //if(ev.type == KeyPress && ev.xkey.subwindow != None)
+        //    XRaiseWindow(dpy, ev.xkey.subwindow);
         else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
         {
             XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
@@ -73,5 +78,5 @@ int main(void)
         else if(ev.type == ButtonRelease)
             start.subwindow = None;
     }
+    XCloseDisplay(dpy);
 }
-
