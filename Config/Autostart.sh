@@ -5,3 +5,4 @@
 # Examples
 # firefox
 # polybar &
+xterm &

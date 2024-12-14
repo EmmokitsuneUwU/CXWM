@@ -1,14 +1,12 @@
-# Variables
 PREFIX ?= /usr/X11R6
 CXX ?= g++
 CXXFLAGS ?= -Os -pedantic -Wall -Wextra -std=c++17
 LDFLAGS ?= -L$(PREFIX)/lib -lX11
-INCLUDES ?= -I$(PREFIX)/include
-SRC = cxwm-main.cpp
+INCLUDES ?= -I$(PREFIX)/include -I$(PWD)/Include
+SRC = Src/cxwm-main.cpp
 BUILD_DIR = Build
 TARGET = $(BUILD_DIR)/CXWM
 
-# Reglas
 all: $(TARGET)
 
 $(TARGET): $(SRC)

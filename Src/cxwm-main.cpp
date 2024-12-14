@@ -1,11 +1,38 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <iostream>
+#include <cstdlib>
+#include <inipp.h>
+#include <fstream>
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 int main(void)
 {
+
+    const char* userHome = getenv("HOME");
+    std::string configPath = std::string(userHome) + "/.config/CXWM";
+    std::string autostartPath = configPath + "/Autostart.sh";
+
+    // read settings and stupid things from config.ini
+    inipp::Ini<char> ini;
+    std::ifstream is(configPath + "/config.ini");
+    ini.parse(is);
+    
+    int configtest = -1;
+    inipp::get_value(ini.sections["general"],"test",configtest);
+    std::cout << configtest << std::endl;
+    
+    const char* appLauncher = "rofi -show drun";
+
+    // autostart
+    int autostartStatus = system(autostartPath.c_str());
+
+    if(autostartStatus != 0)
+    {
+        std::cout << "Error!,failed to execute autostart script at " << autostartPath << std::endl;
+    }
+
     Display *dpy;
     XWindowAttributes attr;
     XButtonEvent start;
@@ -22,7 +49,6 @@ int main(void)
     std::cout << "CXWM inited! " << DisplayWidth(dpy, currentScreen) << "w "
               << DisplayHeight(dpy, currentScreen) << "h" << std::endl;
 
-    // Configurando la tecla F1, Alt+X y Alt+Shift+Q
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F1")), Mod1Mask,
              DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
@@ -30,6 +56,9 @@ int main(void)
              DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("Q")), Mod1Mask | ShiftMask,
+             DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("D")), Mod1Mask,
              DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
     // Captura los eventos de botón (para mover las ventanas)
@@ -52,6 +81,8 @@ int main(void)
                     std::cout << "killing" << std::endl;
                     XDestroyWindow(dpy, activeWindow);
                     activeWindow = None;
+                    start.subwindow = None;
+                    ev.xbutton.subwindow = None;
                 }
             }
 
@@ -61,6 +92,11 @@ int main(void)
                 std::cout << "Quit" << std::endl;
                 break;
             }
+
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym("D")) && (ev.xkey.state & Mod1Mask))
+            {
+                system(appLauncher);
+            }
         }
 
         else if (ev.type == ButtonPress)
@@ -69,10 +105,10 @@ int main(void)
             {
                 activeWindow = ev.xbutton.subwindow; //detecting focus change :3
                 std::cout << "actived window changed" << std::endl;
-            }
 
-            XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
-            start = ev.xbutton;
+                XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
+                start = ev.xbutton;
+            }
         }
         else if (ev.type == MotionNotify && start.subwindow != None)
         {
