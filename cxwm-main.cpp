@@ -45,18 +45,16 @@ int main(void)
 
         if (ev.type == KeyPress)
         {
-            // Detectar Alt + X
             if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym("X")) && (ev.xkey.state & Mod1Mask))
             {
                 if (activeWindow != None)
                 {
-                    std::cout << "Alt + X Pressed: Destroying active window" << std::endl;
-                    XDestroyWindow(dpy, activeWindow);  // Matar la ventana activa
-                    activeWindow = None; // Resetear la ventana activa
+                    std::cout << "killing" << std::endl;
+                    XDestroyWindow(dpy, activeWindow);
+                    activeWindow = None;
                 }
             }
 
-            // Detectar Alt + Shift + Q para salir
             if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym("Q")) &&
                 (ev.xkey.state & Mod1Mask) && (ev.xkey.state & ShiftMask))
             {
@@ -70,7 +68,7 @@ int main(void)
             if (ev.xbutton.subwindow != None)
             {
                 activeWindow = ev.xbutton.subwindow; //detecting focus change :3
-                std::cout << "Window clicked, setting active window." << std::endl;
+                std::cout << "actived window changed" << std::endl;
             }
 
             XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
