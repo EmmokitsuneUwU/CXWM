@@ -10,10 +10,13 @@ TARGET = $(BUILD_DIR)/CXWM
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	@mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SRC) $(LDFLAGS) -o $(TARGET)
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+run:
+	bash runWM.sh
 
 .PHONY: all clean

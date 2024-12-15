@@ -1,5 +1,7 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#include <X11/Xatom.h>
+
 #include <iostream>
 #include <cstdlib>
 #include <inipp.h>
@@ -53,6 +55,14 @@ int main(void)
 
     root = DefaultRootWindow(dpy);
     currentScreen = DefaultScreen(dpy);
+
+    Atom net_wm_name = XInternAtom(dpy, "_NET_WM_NAME", False);
+    Atom utf8_string = XInternAtom(dpy, "UTF8_STRING", False);
+
+    const char* wm_name = "CXWM";
+
+    XChangeProperty(dpy, root, net_wm_name, utf8_string, 8, PropModeReplace,
+        reinterpret_cast<const unsigned char*>(wm_name), strlen(wm_name));
 
     std::cout << "CXWM inited! " << DisplayWidth(dpy, currentScreen) << "w "
               << DisplayHeight(dpy, currentScreen) << "h" << std::endl;
