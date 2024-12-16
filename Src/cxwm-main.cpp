@@ -1,6 +1,7 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <X11/Xatom.h>
+#include <X11/Xutil.h>
 
 #include <iostream>
 #include <cstdlib>
@@ -11,8 +12,9 @@
 
 int main(void)
 {
-
-    std::string configAppLauncher,configCloseWindow,configExitWM,configAppLauncherKb;
+    //stupid line for config variables
+    std::string configAppLauncher,configAppsPath,configTerminal,
+        configCloseWindow,configExitWM,configAppLauncherKb,configTerminalKb;
 
     const char* userHome = getenv("HOME");
     std::string configPath = std::string(userHome) + "/.config/CXWM";
@@ -23,15 +25,15 @@ int main(void)
     std::ifstream is(configPath + "/config.ini");
     ini.parse(is);
     
-    int configtest = -1;
     inipp::get_value(ini.sections["general"],"appLauncher",configAppLauncher);
+    inipp::get_value(ini.sections["general"],"appsPath",configAppsPath);
+    inipp::get_value(ini.sections["general"],"terminal",configTerminal);
 
     // read keybinds
     inipp::get_value(ini.sections["keybinds"],"closeWindow",configCloseWindow);
     inipp::get_value(ini.sections["keybinds"],"exitWM",configExitWM);
     inipp::get_value(ini.sections["keybinds"],"appLauncherKb",configAppLauncherKb);
-
-    std::cout << configAppLauncher << configCloseWindow << configExitWM << configAppLauncherKb << std::endl;
+    inipp::get_value(ini.sections["keybinds"],"terminalKb",configTerminalKb);
     
     std::string appLauncher = configAppLauncher;
 
@@ -45,6 +47,7 @@ int main(void)
 
     Display *dpy;
     XWindowAttributes attr;
+    XClassHint classHint;
     XButtonEvent start;
     XEvent ev;
 
@@ -65,25 +68,30 @@ int main(void)
         reinterpret_cast<const unsigned char*>(wm_name), strlen(wm_name));
 
     std::cout << "CXWM inited! " << DisplayWidth(dpy, currentScreen) << "w "
-              << DisplayHeight(dpy, currentScreen) << "h" << std::endl;
+        << DisplayHeight(dpy, currentScreen) << "h" << std::endl;
 
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F1")), Mod1Mask,
-             DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configCloseWindow.c_str())), Mod1Mask,
-             DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configExitWM.c_str())), Mod1Mask | ShiftMask,
-             DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configAppLauncherKb.c_str())), Mod1Mask,
-             DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("Return") ), Mod1Mask,
+        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
     
     //mouse buttons,why do most of the popular WMs need a mouse,dude
     XGrabButton(dpy, 1, Mod1Mask, DefaultRootWindow(dpy), True,
                 ButtonPressMask | ButtonReleaseMask | PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
     XGrabButton(dpy, 3, Mod1Mask, DefaultRootWindow(dpy), True,
                 ButtonPressMask | ButtonReleaseMask | PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
+
+    // Low level autostarts
+    system((configAppsPath + "CXWMWelcome/CXWMWelcome &").c_str());
 
     start.subwindow = None;
     while (true)
@@ -92,7 +100,7 @@ int main(void)
 
         if (ev.type == KeyPress)
         {
-            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym("X")) && (ev.xkey.state & Mod1Mask))
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configCloseWindow.c_str())) && (ev.xkey.state & Mod1Mask))
             {
                 if (activeWindow != None)
                 {
@@ -104,16 +112,20 @@ int main(void)
                 }
             }
 
-            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym("Q")) &&
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configExitWM.c_str())) &&
                 (ev.xkey.state & Mod1Mask) && (ev.xkey.state & ShiftMask))
             {
                 std::cout << "Quit" << std::endl;
                 break;
             }
 
-            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym("D")) && (ev.xkey.state & Mod1Mask))
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configAppLauncherKb.c_str())) && (ev.xkey.state & Mod1Mask))
             {
                 system(appLauncher.c_str());
+            }
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("Return") ) && (ev.xkey.state & Mod1Mask) )
+            {
+                system((configTerminal + "&").c_str());
             }
         }
 
@@ -124,6 +136,7 @@ int main(void)
                 activeWindow = ev.xbutton.subwindow; //detecting focus change :3
                 std::cout << "active window changed" << std::endl;
                 XRaiseWindow(dpy,activeWindow);
+                XSetInputFocus(dpy,activeWindow,RevertToNone,CurrentTime);
 
                 XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
                 start = ev.xbutton;
@@ -131,13 +144,34 @@ int main(void)
         }
         else if (ev.type == MotionNotify && start.subwindow != None)
         {
-            int xdiff = ev.xbutton.x_root - start.x_root;
-            int ydiff = ev.xbutton.y_root - start.y_root;
-            XMoveResizeWindow(dpy, start.subwindow,
-                              attr.x + (start.button == 1 ? xdiff : 0),
-                              attr.y + (start.button == 1 ? ydiff : 0),
-                              MAX(1, attr.width + (start.button == 3 ? xdiff : 0)),
-                              MAX(1, attr.height + (start.button == 3 ? ydiff : 0)));
+            //Move
+            if(activeWindow != None && start.button == 1)
+            {
+                if(XGetClassHint(dpy,start.subwindow,&classHint))
+                {
+                    if(strcmp(classHint.res_name,"") !=0)
+                    {
+                        int xdiff = ev.xbutton.x_root - start.x_root;
+                        int ydiff = ev.xbutton.y_root - start.y_root;
+                        XMoveWindow(dpy,start.subwindow,attr.x + (start.button == 1 ? xdiff : 0),attr.y + (start.button == 1 ? ydiff : 0));
+                    }
+                }
+            }
+            //Change size
+            else if (activeWindow != None && start.button ==3)
+            {
+                if(XGetClassHint(dpy,start.subwindow,&classHint))
+                {
+                    if(strcmp(classHint.res_name,"CXWMWelcome") !=0)
+                    {
+                        int xdiff = ev.xbutton.x_root - start.x_root;
+                        int ydiff = ev.xbutton.y_root - start.y_root;
+                        XResizeWindow(dpy, start.subwindow,
+                            MAX(1, attr.width + (start.button == 3 ? xdiff : 0)),
+                            MAX(1, attr.height + (start.button == 3 ? ydiff : 0)));
+                    }
+                }
+            }
         }
         else if (ev.type == ButtonRelease)
             start.subwindow = None;
