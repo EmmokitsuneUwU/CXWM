@@ -37,27 +37,33 @@ int main(void)
     
     std::string appLauncher = configAppLauncher;
 
-    // autostart
-    int autostartStatus = system(autostartPath.c_str());
-
-    if(autostartStatus != 0)
-    {
-        std::cout << "Error!,failed to execute autostart script at " << autostartPath << std::endl;
-    }
-
     Display *dpy;
     XWindowAttributes attr;
     XClassHint classHint;
     XButtonEvent start;
     XEvent ev;
 
+    XColor colorBorder;
+    colorBorder.red = 143 * 257;
+    colorBorder.green = 142 * 257;
+    colorBorder.blue = 154 * 257;
+    colorBorder.flags = DoRed | DoGreen | DoBlue;
+
     int currentScreen;
     Window root, activeWindow = None;
+    static Window previousWindow = None;
 
     if (!(dpy = XOpenDisplay(nullptr))) return 1;
 
     root = DefaultRootWindow(dpy);
     currentScreen = DefaultScreen(dpy);
+
+    Colormap colormap = DefaultColormap(dpy,currentScreen);
+
+    if(!XAllocColor(dpy,colormap,&colorBorder))
+    {
+        std::cout << "Error,cant alloc colorBorder" << std::endl;
+    }
 
     Atom net_wm_name = XInternAtom(dpy, "_NET_WM_NAME", False);
     Atom utf8_string = XInternAtom(dpy, "UTF8_STRING", False);
@@ -81,7 +87,11 @@ int main(void)
 
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configAppLauncherKb.c_str())), Mod1Mask,
         DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("Return") ), Mod1Mask,
+        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("R") ), Mod1Mask,
         DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
     
     //mouse buttons,why do most of the popular WMs need a mouse,dude
@@ -92,6 +102,13 @@ int main(void)
 
     // Low level autostarts
     system((configAppsPath + "CXWMWelcome/CXWMWelcome &").c_str());
+    // autostart
+    int autostartStatus = system(autostartPath.c_str());
+
+    if(autostartStatus != 0)
+    {
+        std::cout << "Error!,failed to execute autostart script at " << autostartPath << std::endl;
+    }
 
     start.subwindow = None;
     while (true)
@@ -109,6 +126,8 @@ int main(void)
                     activeWindow = None;
                     start.subwindow = None;
                     ev.xbutton.subwindow = None;
+                    previousWindow = None;
+                    XSetInputFocus(dpy,root,RevertToNone,CurrentTime);
                 }
             }
 
@@ -127,18 +146,30 @@ int main(void)
             {
                 system((configTerminal + "&").c_str());
             }
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("R") ) && (ev.xkey.state & Mod1Mask) )
+            {
+                system((configAppsPath + "CXWMAppRunner/CXWMAppRunner &").c_str());
+            }
         }
 
         else if (ev.type == ButtonPress)
         {
             if (ev.xbutton.subwindow != None)
             {
+                if (previousWindow != None && previousWindow != ev.xbutton.subwindow)
+                {
+                    XSetWindowBorderWidth(dpy, previousWindow, 0);
+                }
+
                 activeWindow = ev.xbutton.subwindow; //detecting focus change :3
                 std::cout << "active window changed" << std::endl;
                 XRaiseWindow(dpy,activeWindow);
                 XSetInputFocus(dpy,activeWindow,RevertToNone,CurrentTime);
+                XSetWindowBorder(dpy,activeWindow,colorBorder.pixel);
+                XSetWindowBorderWidth(dpy,activeWindow,5);
+                previousWindow = activeWindow;
 
-                XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
+                XGetWindowAttributes(dpy, activeWindow, &attr);
                 start = ev.xbutton;
             }
         }
@@ -174,7 +205,11 @@ int main(void)
             }
         }
         else if (ev.type == ButtonRelease)
+        {
             start.subwindow = None;
+            activeWindow = None;
+        }
+
     }
 
     XCloseDisplay(dpy);
