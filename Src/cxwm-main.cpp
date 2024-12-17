@@ -50,7 +50,8 @@ int main(void)
     colorBorder.flags = DoRed | DoGreen | DoBlue;
 
     int currentScreen;
-    Window root, activeWindow = None;
+    int revert_to;
+    Window root, activeWindow = None,focusedWindow = None;
     static Window previousWindow = None;
 
     if (!(dpy = XOpenDisplay(nullptr))) return 1;
@@ -110,10 +111,14 @@ int main(void)
         std::cout << "Error!,failed to execute autostart script at " << autostartPath << std::endl;
     }
 
-    start.subwindow = None;
     while (true)
     {
         XNextEvent(dpy, &ev);
+
+        if(XGetInputFocus(dpy,&focusedWindow,&revert_to) == None)
+        {
+            XSetInputFocus(dpy,root,RevertToParent,CurrentTime);
+        }
 
         if (ev.type == KeyPress)
         {
@@ -124,10 +129,9 @@ int main(void)
                     std::cout << "killing" << std::endl;
                     XDestroyWindow(dpy, activeWindow);
                     activeWindow = None;
-                    start.subwindow = None;
                     ev.xbutton.subwindow = None;
                     previousWindow = None;
-                    XSetInputFocus(dpy,root,RevertToNone,CurrentTime);
+                    XSetInputFocus(dpy,root,RevertToParent,CurrentTime);
                 }
             }
 
@@ -156,48 +160,41 @@ int main(void)
         {
             if (ev.xbutton.subwindow != None)
             {
-                if (previousWindow != None && previousWindow != ev.xbutton.subwindow)
-                {
-                    XSetWindowBorderWidth(dpy, previousWindow, 0);
-                }
-
                 activeWindow = ev.xbutton.subwindow; //detecting focus change :3
                 std::cout << "active window changed" << std::endl;
                 XRaiseWindow(dpy,activeWindow);
-                XSetInputFocus(dpy,activeWindow,RevertToNone,CurrentTime);
-                XSetWindowBorder(dpy,activeWindow,colorBorder.pixel);
-                XSetWindowBorderWidth(dpy,activeWindow,5);
+                XSetInputFocus(dpy,activeWindow,RevertToParent,CurrentTime);
                 previousWindow = activeWindow;
 
                 XGetWindowAttributes(dpy, activeWindow, &attr);
                 start = ev.xbutton;
             }
         }
-        else if (ev.type == MotionNotify && start.subwindow != None)
+        else if (ev.type == MotionNotify)
         {
             //Move
             if(activeWindow != None && start.button == 1)
             {
-                if(XGetClassHint(dpy,start.subwindow,&classHint))
+                if(XGetClassHint(dpy,activeWindow,&classHint))
                 {
                     if(strcmp(classHint.res_name,"") !=0)
                     {
                         int xdiff = ev.xbutton.x_root - start.x_root;
                         int ydiff = ev.xbutton.y_root - start.y_root;
-                        XMoveWindow(dpy,start.subwindow,attr.x + (start.button == 1 ? xdiff : 0),attr.y + (start.button == 1 ? ydiff : 0));
+                        XMoveWindow(dpy,activeWindow,attr.x + (start.button == 1 ? xdiff : 0),attr.y + (start.button == 1 ? ydiff : 0));
                     }
                 }
             }
             //Change size
             else if (activeWindow != None && start.button ==3)
             {
-                if(XGetClassHint(dpy,start.subwindow,&classHint))
+                if(XGetClassHint(dpy,activeWindow,&classHint))
                 {
                     if(strcmp(classHint.res_name,"CXWMWelcome") !=0)
                     {
                         int xdiff = ev.xbutton.x_root - start.x_root;
                         int ydiff = ev.xbutton.y_root - start.y_root;
-                        XResizeWindow(dpy, start.subwindow,
+                        XResizeWindow(dpy, activeWindow,
                             MAX(1, attr.width + (start.button == 3 ? xdiff : 0)),
                             MAX(1, attr.height + (start.button == 3 ? ydiff : 0)));
                     }
@@ -206,7 +203,6 @@ int main(void)
         }
         else if (ev.type == ButtonRelease)
         {
-            start.subwindow = None;
             activeWindow = None;
         }
 
