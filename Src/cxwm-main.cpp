@@ -16,6 +16,8 @@ int main(void)
     std::string configAppLauncher,configAppsPath,configTerminal,
         configCloseWindow,configExitWM,configAppLauncherKb,configTerminalKb;
 
+    int backgroundR = 0,backgroundG = 0,backgroundB = 0;
+
     const char* userHome = getenv("HOME");
     std::string configPath = std::string(userHome) + "/.config/CXWM";
     std::string autostartPath = configPath + "/Autostart.sh";
@@ -34,6 +36,11 @@ int main(void)
     inipp::get_value(ini.sections["keybinds"],"exitWM",configExitWM);
     inipp::get_value(ini.sections["keybinds"],"appLauncherKb",configAppLauncherKb);
     inipp::get_value(ini.sections["keybinds"],"terminalKb",configTerminalKb);
+
+    // read colors
+    inipp::get_value(ini.sections["colors"],"backgroundR",backgroundR);
+    inipp::get_value(ini.sections["colors"],"backgroundG",backgroundG);
+    inipp::get_value(ini.sections["colors"],"backgroundB",backgroundB);
     
     std::string appLauncher = configAppLauncher;
 
@@ -43,15 +50,15 @@ int main(void)
     XButtonEvent start;
     XEvent ev;
 
-    XColor colorBorder;
-    colorBorder.red = 143 * 257;
-    colorBorder.green = 142 * 257;
-    colorBorder.blue = 154 * 257;
-    colorBorder.flags = DoRed | DoGreen | DoBlue;
+    XColor colorBackground;
+    colorBackground.red = backgroundR * 257;
+    colorBackground.green = backgroundG * 257;
+    colorBackground.blue = backgroundB * 257;
+    colorBackground.flags = DoRed | DoGreen | DoBlue;
 
     int currentScreen;
     int revert_to;
-    Window root, activeWindow = None,focusedWindow = None;
+    Window root, activeWindow = None,focusedWindow = None,backgroundWindow = None;
     static Window previousWindow = None;
 
     if (!(dpy = XOpenDisplay(nullptr))) return 1;
@@ -61,7 +68,7 @@ int main(void)
 
     Colormap colormap = DefaultColormap(dpy,currentScreen);
 
-    if(!XAllocColor(dpy,colormap,&colorBorder))
+    if(!XAllocColor(dpy,colormap,&colorBackground))
     {
         std::cout << "Error,cant alloc colorBorder" << std::endl;
     }
@@ -111,6 +118,10 @@ int main(void)
         std::cout << "Error!,failed to execute autostart script at " << autostartPath << std::endl;
     }
 
+    backgroundWindow = XCreateSimpleWindow(dpy,root,0,0,DisplayWidth(dpy,currentScreen),DisplayHeight(dpy,currentScreen),1,BlackPixel(dpy,currentScreen),colorBackground.pixel);
+
+    XMapWindow(dpy,backgroundWindow);
+
     while (true)
     {
         XNextEvent(dpy, &ev);
@@ -158,10 +169,12 @@ int main(void)
 
         else if (ev.type == ButtonPress)
         {
-            if (ev.xbutton.subwindow != None)
+            if (ev.xbutton.subwindow != None && ev.xbutton.subwindow != backgroundWindow)
             {
                 activeWindow = ev.xbutton.subwindow; //detecting focus change :3
                 std::cout << "active window changed" << std::endl;
+
+
                 XRaiseWindow(dpy,activeWindow);
                 XSetInputFocus(dpy,activeWindow,RevertToParent,CurrentTime);
                 previousWindow = activeWindow;
