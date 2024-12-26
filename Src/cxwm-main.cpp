@@ -185,7 +185,7 @@ int main(void)
             if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configExitWM.c_str())) &&
                 (ev.xkey.state & Mod1Mask) && (ev.xkey.state & ShiftMask))
             {
-                break;
+                system((configAppsPath + "CXWMShutdown/CXWMShutdown &").c_str());
             }
 
             if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configAppLauncherKb.c_str())) && (ev.xkey.state & Mod1Mask))
@@ -238,7 +238,7 @@ int main(void)
             {
                 if(XGetClassHint(dpy,activeWindow,&classHint))
                 {
-                    if(strcmp(classHint.res_name,"CXWMWelcome") !=0 && strcmp(classHint.res_name,"CXWMDock") != 0)
+                	if(strcmp(classHint.res_name,"CXWMWelcome") !=0 && strcmp(classHint.res_name,"CXWMDock") != 0)
                     {
                         int xdiff = ev.xbutton.x_root - start.x_root;
                         int ydiff = ev.xbutton.y_root - start.y_root;
