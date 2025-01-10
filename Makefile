@@ -3,7 +3,7 @@ CXX ?= g++
 CXXFLAGS ?= -Os -pedantic -Wall -Wextra -std=c++17
 LDFLAGS ?= -L$(PREFIX)/lib -lX11
 INCLUDES ?= -I$(PREFIX)/include -I$(PWD)/Include
-SRC = Src/cxwm-main.cpp
+SRC = $(wildcard Src/*.cpp)
 BUILD_DIR = Build
 TARGET = $(BUILD_DIR)/CXWM
 

@@ -2,13 +2,17 @@
 #include <X11/keysym.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
+#include <X11/cursorfont.h>
 
 #include <iostream>
 #include <cstdlib>
 #include <inipp.h>
 #include <fstream>
 
+#include <../Include/Util.hpp>
+
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define mainMod Mod1Mask
 
 //stupid line for config variables
 std::string configAppLauncher,configAppsPath,configTerminal,
@@ -46,30 +50,25 @@ void loadSettings()
 }
 void grabKeys(Display *dpy)
 {
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F1")), Mod1Mask,
-        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F1")), mainMod,DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configCloseWindow.c_str())), Mod1Mask,
-        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configCloseWindow.c_str())), mainMod,DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configExitWM.c_str())), Mod1Mask | ShiftMask,
-        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configExitWM.c_str())), mainMod | ShiftMask,DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configAppLauncherKb.c_str())), Mod1Mask,
-        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym(configAppLauncherKb.c_str())), mainMod,DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("Return") ), Mod1Mask,
-        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("Return") ), mainMod, DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
 
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("R") ), Mod1Mask,
-        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("m") ), Mod1Mask,
-        DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("R") ), mainMod,DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("m") ), mainMod,DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
+
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XK_Tab ), mainMod,DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
     
     //mouse buttons,why do most of the popular WMs need a mouse,dude
-    XGrabButton(dpy, 1, Mod1Mask, DefaultRootWindow(dpy), True,
+    XGrabButton(dpy, 1, mainMod, DefaultRootWindow(dpy), True,
                 ButtonPressMask | ButtonReleaseMask | PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
-    XGrabButton(dpy, 3, Mod1Mask, DefaultRootWindow(dpy), True,
+    XGrabButton(dpy, 3, mainMod, DefaultRootWindow(dpy), True,
                 ButtonPressMask | ButtonReleaseMask | PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
 }
 
@@ -82,6 +81,10 @@ int main(void)
     XClassHint classHint;
     XButtonEvent start;
     XEvent ev;
+    Cursor cursorArrow,cursorGrab;
+    XWindowAttributes atr;
+
+    int windowIndex = 1;
 
     XColor colorBackground;
     colorBackground.red = backgroundR * 257;
@@ -89,10 +92,18 @@ int main(void)
     colorBackground.blue = backgroundB * 257;
     colorBackground.flags = DoRed | DoGreen | DoBlue;
 
+    XColor colorBorder;
+    colorBorder.red = 110 * 257;
+    colorBorder.green = 110 * 257;
+    colorBorder.blue = 120 * 257;
+    colorBackground.flags = DoRed | DoGreen | DoBlue;
+
     int currentScreen;
     int revert_to;
     Window root, activeWindow = None,focusedWindow = None,backgroundWindow = None;
     static Window previousWindow = None;
+    std::vector<Window> Windows;
+    char* WindowName = nullptr;
 
     if (!(dpy = XOpenDisplay(nullptr))) return 1;
 
@@ -102,6 +113,10 @@ int main(void)
     Colormap colormap = DefaultColormap(dpy,currentScreen);
 
     if(!XAllocColor(dpy,colormap,&colorBackground))
+    {
+        std::cout << "Error,cant alloc colorBackground" << std::endl;
+    }
+    if(!XAllocColor(dpy,colormap,&colorBorder))
     {
         std::cout << "Error,cant alloc colorBorder" << std::endl;
     }
@@ -134,6 +149,12 @@ int main(void)
 
     XMapWindow(dpy,backgroundWindow);
 
+    cursorArrow = XCreateFontCursor(dpy, XC_arrow);
+    cursorGrab = XCreateFontCursor(dpy, XC_hand2);
+    XDefineCursor(dpy, root, cursorArrow);
+
+    XSelectInput(dpy,root,SubstructureNotifyMask);
+
     while (true)
     {
         XNextEvent(dpy, &ev);
@@ -145,7 +166,7 @@ int main(void)
 
         if (ev.type == KeyPress)
         {
-            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configCloseWindow.c_str())) && (ev.xkey.state & Mod1Mask))
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configCloseWindow.c_str())) && (ev.xkey.state & mainMod))
             {
                 if (activeWindow != None && XGetClassHint(dpy,activeWindow,&classHint))
                 {
@@ -168,7 +189,7 @@ int main(void)
 
                 }
             }
-            if(ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("m")) && (ev.xkey.state & Mod1Mask))
+            if(ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("m")) && (ev.xkey.state & mainMod))
             {
                 if(activeWindow != None && XGetClassHint(dpy,activeWindow,&classHint))
                 {
@@ -183,22 +204,40 @@ int main(void)
             }
 
             if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configExitWM.c_str())) &&
-                (ev.xkey.state & Mod1Mask) && (ev.xkey.state & ShiftMask))
+                (ev.xkey.state & mainMod) && (ev.xkey.state & ShiftMask))
             {
                 system((configAppsPath + "CXWMShutdown/CXWMShutdown &").c_str());
             }
 
-            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configAppLauncherKb.c_str())) && (ev.xkey.state & Mod1Mask))
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy, XStringToKeysym(configAppLauncherKb.c_str())) && (ev.xkey.state & mainMod))
             {
                 system(appLauncher.c_str());
             }
-            if (ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("Return") ) && (ev.xkey.state & Mod1Mask) )
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("Return") ) && (ev.xkey.state & mainMod) )
             {
                 system((configTerminal + "&").c_str());
             }
-            if (ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("R") ) && (ev.xkey.state & Mod1Mask) )
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy,XStringToKeysym("R") ) && (ev.xkey.state & mainMod) )
             {
                 system((configAppsPath + "CXWMAppRunner/CXWMAppRunner &").c_str());
+            }
+            if (ev.xkey.keycode == XKeysymToKeycode(dpy,XK_Tab) && (ev.xkey.state & mainMod) )
+            {
+                Windows.clear();
+                Windows = CXWMUtil::getWindows(dpy);
+
+                if(XGetWindowAttributes(dpy,Windows[windowIndex],&atr) && Windows[windowIndex] != None)
+                {
+                    XRaiseWindow(dpy,Windows[windowIndex]);
+                }
+                windowIndex += 1;
+                if(windowIndex >= Windows.size()){
+                    windowIndex = 1;
+                }
+                std::cout << Windows.size() << '/';
+                std::cout << windowIndex << std::endl;
+                XFetchName(dpy,Windows[windowIndex],&WindowName);
+                std::cout << WindowName << std::endl;
             }
         }
 
@@ -228,6 +267,7 @@ int main(void)
                         int xdiff = ev.xbutton.x_root - start.x_root;
                         int ydiff = ev.xbutton.y_root - start.y_root;
                         XMoveWindow(dpy,activeWindow,attr.x + (start.button == 1 ? xdiff : 0),attr.y + (start.button == 1 ? ydiff : 0));
+                        XDefineCursor(dpy, root, cursorGrab);
                     }
                     if(classHint.res_name) { XFree(classHint.res_name); }
                     if(classHint.res_class) { XFree(classHint.res_class); }
@@ -245,6 +285,7 @@ int main(void)
                         XResizeWindow(dpy, activeWindow,
                             MAX(1, attr.width + (start.button == 3 ? xdiff : 0)),
                             MAX(1, attr.height + (start.button == 3 ? ydiff : 0)));
+                        XDefineCursor(dpy, root, cursorGrab);
                     }
                     if(classHint.res_name) { XFree(classHint.res_name); }
                     if(classHint.res_class) { XFree(classHint.res_class); }
@@ -255,6 +296,19 @@ int main(void)
         else if (ev.type == ButtonRelease)
         {
                 activeWindow = None;
+                XDefineCursor(dpy, root, cursorArrow);
+        }
+        else if (ev.type == CreateNotify)
+        {
+            if(ev.xbutton.subwindow != None)
+            {
+                XCreateWindowEvent *ce = (XCreateWindowEvent *)&ev;
+                if(ce->window != None)
+                {
+                    XSetWindowBorderWidth(dpy, ce->window, 3);
+                    XSetWindowBorder(dpy, ce->window, colorBorder.pixel);
+                }
+            }
         }
     }
 
