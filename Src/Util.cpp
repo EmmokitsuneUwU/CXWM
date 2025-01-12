@@ -22,7 +22,7 @@ namespace CXWMUtil
         }
         else
         {
-            std::cout << "ERROR" << std::endl;
+            std::cout << "ERROR ON CXWMUTIL::GETWINDOWS" << std::endl;
         }
         return Windows;
     }

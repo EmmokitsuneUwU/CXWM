@@ -84,7 +84,7 @@ int main(void)
     Cursor cursorArrow,cursorGrab;
     XWindowAttributes atr;
 
-    int windowIndex = 1;
+    long unsigned int windowIndex = 1;
 
     XColor colorBackground;
     colorBackground.red = backgroundR * 257;
