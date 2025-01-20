@@ -26,6 +26,11 @@ std::string autostartPath = configPath + "/Autostart.sh";
     
 std::string appLauncher = configAppLauncher;
 
+void allocCollors()
+{
+    
+}
+
 void loadSettings()
 {
     // read settings and stupid things from config.ini
@@ -154,6 +159,7 @@ int main(void)
     XDefineCursor(dpy, root, cursorArrow);
 
     XSelectInput(dpy,root,SubstructureNotifyMask);
+    std::cout << currentScreen << std::endl;
 
     while (true)
     {
@@ -298,17 +304,9 @@ int main(void)
                 activeWindow = None;
                 XDefineCursor(dpy, root, cursorArrow);
         }
-        else if (ev.type == CreateNotify)
+        else if (ev.type == DestroyNotify)
         {
-            if(ev.xbutton.subwindow != None)
-            {
-                XCreateWindowEvent *ce = (XCreateWindowEvent *)&ev;
-                if(ce->window != None)
-                {
-                    XSetWindowBorderWidth(dpy, ce->window, 3);
-                    XSetWindowBorder(dpy, ce->window, colorBorder.pixel);
-                }
-            }
+            std::cout << "destroy" << std::endl;
         }
     }
 
